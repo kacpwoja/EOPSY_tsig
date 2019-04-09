@@ -1,0 +1,4 @@
+# ignore all .o files from compiling
+*.o
+*.out
+
