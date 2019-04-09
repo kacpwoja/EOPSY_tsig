@@ -4,11 +4,29 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-//#define WITH_SIGNALS
-#define NUM_CHILD 5
+#define WITH_SIGNALS
+#define NUM_CHILD 60
+
+#ifdef WITH_SIGNALS
+int interrupted = 0;
+
+void interrupt_handler();
+void terminate_handler();
+#endif
+
+void terminate_children(int amount, int* pids);
 
 int main(int argc, char** argv)
 {
+	#ifdef WITH_SIGNALS
+	// Ignore all signals
+	for(int i=1; i<32; i++)
+		signal(i, SIG_IGN);
+	// Restore SIGCHLD
+	signal(SIGCHLD, SIG_DFL);
+	// Set custom interrupt handler
+	signal(SIGINT, interrupt_handler);
+	#endif
 	pid_t child_pids[NUM_CHILD];
 	pid_t pid;
 
@@ -21,11 +39,7 @@ int main(int argc, char** argv)
 		if(pid < 0)
 		{
 			// Send SIGTERM to all already forked children
-			for(int j=0; j<i; j++)
-			{
-				kill(child_pids[j], SIGTERM);
-				printf("parent[%d]: Sending SIGTERM to PID %d\n", (int)getpid(), (int)child_pids[j]);
-			}
+			terminate_children(i, child_pids);
 			// And exit with error code 1
 			return 1;
 		}
@@ -33,6 +47,15 @@ int main(int argc, char** argv)
 		// In Parent Process
 		if(pid > 0)
 		{
+			#ifdef WITH_SIGNALS
+			if(interrupted != 0)
+			{
+				// If process interrupted, print message and exit loop
+				terminate_children(i, child_pids);
+				printf("parent[%d]: Child creation interrupted.\n", (int)getpid());
+				break;
+			}
+			#endif
 			// Add to PID array
 			child_pids[i] = pid;
 			printf("parent[%d]: Child process created. PID: %d\n", (int)getpid(), (int)child_pids[i]);
@@ -45,6 +68,10 @@ int main(int argc, char** argv)
 		// In Child Process
 		if(pid == 0)
 		{
+			#ifdef WITH_SIGNALS
+			signal(SIGINT, SIG_IGN);
+			signal(SIGTERM, terminate_handler); 
+			#endif
 			printf("child[%d]: PID of parent process: %d\n", (int)getpid(), (int)getppid());
 			sleep(10);
 			printf("child[%d]: Completed execution: exiting with code 0\n", (int)getpid());
@@ -79,5 +106,32 @@ int main(int argc, char** argv)
 		printf("PID: %d Exit Code: %d\n", child_pids[i], exit_codes[i]);
 	}
 
+	#ifdef WITH_SIGNALS
+	// Return signal handlers
+	for(int i=1; i<32; i++)
+		signal(i, SIG_DFL);
+	#endif
 	return 0;
 }
+
+void terminate_children(int amount, int* pids)
+{
+	for(int j=0; j<amount; j++)
+	{
+		kill(pids[j], SIGTERM);
+		printf("parent[%d]: Sending SIGTERM to PID %d\n", (int)getpid(), (int)pids[j]);
+	}
+}
+
+#ifdef WITH_SIGNALS
+void interrupt_handler()
+{
+	printf("parent[%d]: Received keyboard interrupt\n", (int)getpid());
+	interrupted = 1;	
+}
+
+void terminate_handler()
+{
+	printf("child[%d]: Received SIGTERM signal.\n", (int)getpid());
+}
+#endif
