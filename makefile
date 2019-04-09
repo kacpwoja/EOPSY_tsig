@@ -1,28 +1,50 @@
+# Program name
+NAME		= tsig
+
+# Compiler
+CC		= gcc
+
 # Directories
-IDIR = headers
-ODIR = out
-SDIR = sources
+SRCDIR		= source
+INCDIR		= headers
+BUILDDIR	= build
 
-# Compilation settings
-CC = gcc
-CFLAGS = -I$(IDIR) -Wall
-LIBS =
+# Flags etc.
+CFLAGS		= -Wall -g
+LIBS		=
+INC		= -I$(INCDIR)
 
-# File list
-_DEPS = 
-_OBJ = main.o
+# ------------------
+# Functionality
+# ------------------
+SRC		= $(shell find $(SRCDIR) -name '*.c')
+OBJ		= $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.o,$(SRC))
 
-#
-DEPS = $(patsubst %,$(IDIR)/%,$(_DEPS))
-OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+# Default
+compile: makedir $(NAME)
 
-$(ODIR)/%.o: $(SDIR)%.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+# Link
+$(NAME): $(OBJ)
+	$(CC) -o $(NAME) $^ $(LIBS)
 
-tsig: $(OBJ)
-	$(CC) -o $@ $^ $(CFLAGS) $(LIBS)
-
+# Clean objects
 clean:
-	rm -f $(ODIR)/*.o *~ core $(IDIR)/*~
+	@rm -f $(BUILDDIR)/*
 
-.PHONY: clean
+# Clean the binary too
+fullclean: clean
+	@rm -f $(NAME)
+
+# Full clean and make again
+remake: fullclean compile
+
+# Create Build directory
+makedir:
+	@mkdir -p $(BUILDDIR)
+
+# Compile
+$(BUILDDIR)/%.o: $(SRCDIR)/%.c
+	$(CC) $(CFLAGS) -o $@ -c $< $(INC)
+
+# PHONY
+.PHONY: compile clean fullclean remake 
