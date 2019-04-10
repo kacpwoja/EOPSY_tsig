@@ -4,17 +4,15 @@
 #include <signal.h>
 #include <sys/wait.h>
 
-#define WITH_SIGNALS
-#define NUM_CHILD 60
+#include <defines.h>
 
 #ifdef WITH_SIGNALS
 int interrupted = 0;
 
-void interrupt_handler();
-void terminate_handler();
+#include <handlers.h>
 #endif
 
-void terminate_children(int amount, int* pids);
+void terminate_children(int amount, pid_t* pids);
 
 int main(int argc, char** argv)
 {
@@ -117,7 +115,7 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-void terminate_children(int amount, int* pids)
+void terminate_children(int amount, pid_t* pids)
 {
 	for(int j=0; j<amount; j++)
 	{
@@ -125,16 +123,3 @@ void terminate_children(int amount, int* pids)
 		printf("parent[%d]: Sending SIGTERM to PID %d\n", (int)getpid(), (int)pids[j]);
 	}
 }
-
-#ifdef WITH_SIGNALS
-void interrupt_handler()
-{
-	printf("parent[%d]: Received keyboard interrupt\n", (int)getpid());
-	interrupted = 1;	
-}
-
-void terminate_handler()
-{
-	printf("child[%d]: Received SIGTERM signal.\n", (int)getpid());
-}
-#endif
