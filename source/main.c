@@ -18,8 +18,7 @@ int main(int argc, char** argv)
 {
 	#ifdef WITH_SIGNALS
 	// Ignore all signals
-	for(int i=1; i<NSIG; i++)
-		signal(i, SIG_IGN);
+	set_all(SIG_IGN);
 	// Restore SIGCHLD
 	signal(SIGCHLD, SIG_DFL);
 	// Set custom interrupt handler
@@ -109,8 +108,7 @@ int main(int argc, char** argv)
 
 	#ifdef WITH_SIGNALS
 	// Return signal handlers
-	for(int i=1; i<NSIG; i++)
-		signal(i, SIG_DFL);
+	set_all(SIG_DFL);
 	#endif
 	return 0;
 }
