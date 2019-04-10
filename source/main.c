@@ -7,9 +7,13 @@
 #include <defines.h>
 
 #ifdef WITH_SIGNALS
-int interrupted = 0;
-
 #include <handlers.h>
+
+int interrupted = 0;
+#endif
+
+#ifdef DYNAMIC
+#include <stdlib.h>
 #endif
 
 void terminate_children(int amount, pid_t* pids);
@@ -24,7 +28,20 @@ int main(int argc, char** argv)
 	// Set custom interrupt handler
 	signal(SIGINT, interrupt_handler);
 	#endif
+
+	// Allocating array for PIDs	
+	#ifndef DYNAMIC
 	pid_t child_pids[NUM_CHILD];
+	#endif
+	#ifdef DYNAMIC
+	pid_t* child_pids = (pid_t*)malloc(sizeof(pid_t));
+	if(child_pids == NULL)
+	{
+		printf("parent[%d]: Could not allocate memory. Terminating all children and exiting.\n", (int)getpid());
+		return 2;
+	}
+	#endif
+
 	int children_count = 0;
 	pid_t pid;
 
@@ -55,10 +72,19 @@ int main(int argc, char** argv)
 		// In Parent Process
 		if(pid > 0)
 		{
+			++children_count;
+			#ifdef DYNAMIC
+			// Resize PID array
+			child_pids = realloc(child_pids, children_count*sizeof(pid_t));
+			if(child_pids == NULL)
+			{
+				printf("parent[%d]: Could not allocate memory. Terminating all children and exiting.\n", (int)getpid());
+				return 2;
+			}
+			#endif
 			// Add to PID array
 			child_pids[i] = pid;
 			printf("parent[%d]: Child process created. PID: %d\n", (int)getpid(), (int)child_pids[i]);
-			++children_count;
 
 			// Wait for 1 second
 			sleep(1);
@@ -109,6 +135,11 @@ int main(int argc, char** argv)
 	#ifdef WITH_SIGNALS
 	// Return signal handlers
 	set_all(SIG_DFL);
+	#endif
+
+	#ifdef DYNAMIC
+	// Free memory
+	free(child_pids);
 	#endif
 	return 0;
 }
